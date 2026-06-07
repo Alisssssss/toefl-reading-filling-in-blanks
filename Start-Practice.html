@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TOEFL Test - Offline Practice System</title>
+  
+  <!-- 核心数据文件连接：引入位于同级 Data 文件夹下的 30 套真题数据库文件 -->
+  <script src="Data/Z001-030-database.js"></script>
+
+  <style>
+    /* 100% 纯本地离线现代化亮紫主题变量定义 (#4F47E6) */
+    :root {
+      --toefl-purple: #4F47E6;
+      --toefl-dark-purple: #3B33D4;
+      --toefl-light-purple: #EEEDFC;
+      --toefl-border: #D0CDFA;
+      
+      --bg-color: #f8fafc;
+      --text-main: #1e293b;
+      --text-muted: #64748b;
+      
+      --card-bg: #ffffff;
+      --card-border: #e2e8f0;
+      
+      --sidebar-bg: #ffffff;
+      --sidebar-border: #e2e8f0;
+      --stats-bg: #f8fafc;
+      
+      --input-bg: #f1f5f9;
+      --input-border: #94a3b8;
+      
+      --correct-bg: #f0fdf4;
+      --correct-text: #15803d;
+      --correct-border: #22c55e;
+      
+      --incorrect-bg: #fef2f2;
+      --incorrect-text: #b91c1c;
+      --incorrect-border: #ef4444;
+    }
+
+    html.dark {
+      --bg-color: #0f172a;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      
+      --card-bg: #1e293b;
+      --card-border: #334155;
+      
+      --sidebar-bg: #1e293b;
+      --sidebar-border: #334155;
+      --stats-bg: #151d30;
+      
+      --input-bg: #334155;
+      --input-border: #4b5563;
+      
+      --correct-bg: rgba(20, 83, 45, 0.25);
+      --correct-text: #4ade80;
+      --correct-border: #22c55e;
+      
+      --incorrect-bg: rgba(127, 29, 29, 0.25);
+      --incorrect-text: #f87171;
+      --incorrect-border: #f87171;
+    }
+
+    /* 基础通用布局样式 */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: background-color 0.2s, color 0.2s;
+    }
+
+    /* 导航栏 */
+    header {
+      height: 4rem;
+      background-color: var(--card-bg);
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2rem;
+      z-index: 40;
+      flex-shrink: 0;
+    }
+
+    .header-logo {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .logo-badge {
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: var(--toefl-purple);
+      letter-spacing: 0.05em;
+    }
+
+    .logo-title {
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: -0.025em;
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .timer-widget {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background-color: var(--stats-bg);
+      padding: 0.4rem 0.8rem;
+      border-radius: 9999px;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .font-mono {
+      font-family: 'JetBrains Mono', 'Consolas', 'Monaco', monospace;
+    }
+
+    .icon-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 0.5rem;
+      border-radius: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .icon-btn:hover {
+      background-color: var(--input-bg);
+      color: var(--text-main);
+    }
+
+    .font-controls {
+      display: flex;
+      align-items: center;
+      background-color: var(--stats-bg);
+      border-radius: 0.5rem;
+      padding: 0.125rem;
+    }
+
+    .font-ctrl-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 0.25rem 0.5rem;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+
+    .font-ctrl-btn:hover {
+      color: var(--text-main);
+    }
+
+    /* 独立双轴固定滚动容器框架 */
+    .app-container {
+      flex: 1;
+      display: flex;
+      max-width: 80rem;
+      width: 100%;
+      margin: 0 auto;
+      padding: 1.5rem;
+      gap: 1.5rem;
+      overflow: hidden;
+      height: calc(100vh - 4rem);
+    }
+
+    /* 左侧冰冻导航看板 */
+    aside {
+      width: 20rem;
+      flex-shrink: 0;
+      background-color: var(--sidebar-bg);
+      border: 1px solid var(--sidebar-border);
+      border-radius: 1rem;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      transition: all 0.3s ease-in-out;
+    }
+
+    aside.hidden {
+      display: none !important;
+    }
+
+    .stats-header {
+      padding: 1.25rem;
+      border-bottom: 1px solid var(--sidebar-border);
+      background-color: var(--stats-bg);
+      flex-shrink: 0;
+    }
+
+    .stats-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.75rem;
+      display: block;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-cols: repeat(2, minmax(0, 1fr));
+      gap: 0.75rem;
+    }
+
+    .stats-card {
+      background-color: var(--card-bg);
+      padding: 0.75rem;
+      border-radius: 0.75rem;
+      border: 1px solid var(--card-border);
+    }
+
+    .stats-card-val {
+      font-size: 1.125rem;
+      font-weight: 700;
+      display: block;
+      margin-top: 0.125rem;
+    }
+
+    .stats-card-label {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+
+    .progress-wrapper {
+      margin-top: 1rem;
+    }
+
+    .progress-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-bottom: 0.25rem;
+    }
+
+    .progress-bg {
+      width: 100%;
+      background-color: var(--input-bg);
+      height: 6px;
+      border-radius: 9999px;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      background-color: var(--toefl-purple);
+      height: 100%;
+      width: 0;
+      transition: width 0.4s ease;
+    }
+
+    .filter-row {
+      margin-top: 0.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .switch-btn {
+      position: relative;
+      display: inline-flex;
+      height: 1.25rem;
+      width: 2.25rem;
+      cursor: pointer;
+      border-radius: 9999px;
+      border: 2px solid transparent;
+      background-color: var(--input-border);
+      transition: background-color 0.2s;
+      outline: none;
+    }
+
+    .switch-btn.active {
+      background-color: var(--toefl-purple);
+    }
+
+    .switch-knob {
+      pointer-events: none;
+      display: inline-block;
+      height: 1rem;
+      width: 1rem;
+      transform: translateX(0);
+      border-radius: 9999px;
+      background-color: #ffffff;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+      transition: transform 0.2s;
+    }
+
+    .switch-btn.active .switch-knob {
+      transform: translateX(1rem);
+    }
+
+    /* 大纲列表项独立滚动轨道 */
+    .nav-section {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .nav-section::-webkit-scrollbar { width: 4px; }
+
+    .nav-item {
+      width: 100%;
+      text-align: left;
+      padding: 0.65rem 0.85rem;
+      border-radius: 0.75rem;
+      background-color: var(--card-bg);
+      border: 1px solid var(--card-border);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: all 0.2s;
+    }
+
+    .nav-item:hover {
+      background-color: var(--stats-bg);
+    }
+
+    .nav-item.active {
+      background-color: var(--toefl-purple);
+      border-color: var(--toefl-purple);
+      color: #ffffff;
+    }
+
+    .nav-item-id {
+      font-size: 0.7rem;
+      font-weight: 700;
+      opacity: 0.75;
+      display: block;
+    }
+
+    .nav-item-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      display: block;
+    }
+
+    .nav-badge-correct {
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 0.125rem 0.375rem;
+      border-radius: 0.25rem;
+      background-color: #dcfce7;
+      color: #15803d;
+    }
+    
+    .nav-badge-mistake {
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 0.125rem 0.375rem;
+      border-radius: 0.25rem;
+      background-color: #fee2e2;
+      color: #b91c1c;
+    }
+
+    .nav-dot-pending {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: #f59e0b;
+    }
+
+    .nav-dot-none {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: var(--input-border);
+    }
+
+    .sidebar-footer {
+      padding: 1rem;
+      border-top: 1px solid var(--sidebar-border);
+      background-color: var(--stats-bg);
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .reset-btn {
+      background: none;
+      border: none;
+      color: #ef4444;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .reset-btn:hover {
+      color: #b91c1c;
+    }
+
+    /* 右侧做题核心区域 */
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .paper-card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 1rem;
+      padding: 1.75rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 1rem;
+      margin-bottom: 1.25rem;
+      flex-shrink: 0;
+    }
+
+    .source-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.35rem;
+    }
+
+    /* 分界收缩呼出按键 */
+    .edge-toggle-btn {
+      padding: 0.35rem; 
+      border: 1px solid var(--card-border); 
+      background-color: var(--stats-bg);
+      border-radius: 0.5rem;
+      cursor: pointer;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    
+    .edge-toggle-btn:hover {
+      background-color: var(--input-bg);
+      color: var(--text-main);
+    }
+
+    .source-badge {
+      background-color: var(--toefl-light-purple);
+      color: var(--toefl-purple);
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.15rem 0.6rem;
+      border-radius: 9999px;
+    }
+
+    .card-title {
+      font-size: 1.35rem;
+      font-weight: 700;
+    }
+
+    /* 模式切换器（Exam设为默认且排在最前） */
+    .mode-toggler {
+      display: flex;
+      background-color: var(--input-bg);
+      padding: 0.25rem;
+      border-radius: 0.75rem;
+    }
+
+    .mode-btn {
+      background: none;
+      border: none;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 0.35rem 0.75rem;
+      border-radius: 0.5rem;
+      transition: all 0.15s;
+    }
+
+    .mode-btn.active {
+      background-color: var(--card-bg);
+      color: var(--toefl-purple);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+
+    .warning-stripe {
+      border-left: 4px solid var(--toefl-purple);
+      padding-left: 1rem;
+      margin-bottom: 1.25rem;
+      flex-shrink: 0;
+    }
+
+    .warning-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--toefl-purple);
+      display: block;
+    }
+
+    .warning-subtitle {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 0.15rem;
+    }
+
+    /* 篇章独立垂直滚动轨道 */
+    .passage-body {
+      flex: 1;
+      overflow-y: auto;
+      padding-right: 0.5rem;
+      line-height: 1.85;
+      text-align: justify;
+      font-weight: 400;
+    }
+
+    /* 极客物理等宽单字符格子样式定义 */
+    .blank-input {
+      font-family: 'JetBrains Mono', 'Consolas', 'Monaco', monospace;
+      width: 1.25rem;
+      height: 1.65rem;
+      margin: 0 1.5px; /* 3px 物理断点防黏连 */
+      border: 0 !important;
+      border-bottom: 2px solid var(--input-border) !important; 
+      background-color: var(--input-bg) !important;        
+      text-align: center;
+      font-weight: 700;
+      outline: none !important;
+      vertical-align: baseline;
+      display: inline-block;
+      transition: all 0.15s ease;
+      border-radius: 2px 2px 0 0 !important;
+      color: var(--text-main);
+    }
+
+    .blank-input:focus {
+      background-color: var(--card-bg) !important;
+      border-bottom: 2.5px solid var(--toefl-purple) !important;
+      box-shadow: 0 2px 6px rgba(79, 71, 230, 0.15);
+    }
+
+    .blank-input.is-correct {
+      background-color: var(--correct-bg) !important;
+      border-bottom-color: var(--correct-border) !important;
+      color: var(--correct-text) !important;
+    }
+
+    .blank-input.is-incorrect {
+      background-color: var(--incorrect-bg) !important;
+      border-bottom-color: var(--incorrect-border) !important;
+      color: var(--incorrect-text) !important;
+    }
+
+    .inline-wrapper {
+      display: inline-flex;
+      align-items: center;
+      vertical-align: baseline;
+      margin-right: 0.375rem;
+      border-radius: 0.25rem;
+      padding: 0 0.125rem;
+    }
+
+    .prefix-span {
+      font-weight: 800;
+      user-select: none;
+      margin-right: 0.125rem;
+    }
+
+    .correction-hint {
+      font-size: 0.7rem;
+      color: var(--correct-border);
+      font-weight: 700;
+      margin-left: 0.25rem;
+      border-bottom: 1px dashed var(--correct-border);
+      user-select: none;
+      cursor: help;
+    }
+
+    /* 底部控制区 */
+    .card-footer {
+      border-top: 1px solid var(--card-border);
+      padding-top: 1rem;
+      margin-top: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .action-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn {
+      border: none;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 0.825rem;
+      border-radius: 0.75rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all 0.2s;
+      outline: none;
+    }
+
+    .btn-primary {
+      background-color: var(--toefl-purple);
+      color: #ffffff;
+      padding: 0.65rem 1.25rem;
+      box-shadow: 0 4px 6px rgba(79, 71, 230, 0.15);
+    }
+
+    .btn-primary:hover { background-color: var(--toefl-dark-purple); }
+    .btn-primary:active { transform: scale(0.95); }
+    .btn-secondary { background-color: var(--input-bg); color: var(--text-main); padding: 0.65rem 1rem; }
+    .btn-secondary:hover { background-color: var(--card-border); }
+    .btn-dark { background-color: #1e293b; color: #ffffff; padding: 0.65rem 1.25rem; }
+    html.dark .btn-dark { background-color: #f1f5f9; color: #1e293b; }
+    .btn-dark:hover { opacity: 0.9; }
+    .btn-dark:active { transform: scale(0.95); }
+
+    .scoreboard {
+      display: none;
+      align-items: center;
+      gap: 0.5rem;
+      background-color: var(--correct-bg);
+      border: 1px solid var(--correct-border);
+      color: var(--correct-text);
+      padding: 0.5rem 1rem;
+      border-radius: 0.75rem;
+    }
+
+    .score-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; }
+    .score-val { font-size: 1.125rem; font-weight: 800; }
+    .score-pct { font-size: 0.7rem; background-color: rgba(34, 197, 94, 0.15); padding: 0.1rem 0.4rem; border-radius: 9999px; font-weight: 700; }
+
+    /* 全局提示气泡 */
+    .toast {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      background-color: #1e293b;
+      color: #ffffff;
+      padding: 0.75rem 1.25rem;
+      border-radius: 0.75rem;
+      font-size: 0.85rem;
+      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      z-index: 50;
+      transform: translateY(150%);
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .toast.show { transform: translateY(0); opacity: 1; }
+
+    /* 欢迎弹窗 */
+    .modal-overlay { position: fixed; inset: 0; background-color: rgba(15, 23, 42, 0.4); backdrop-filter: blur(4px); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+    .modal-overlay.hidden { display: none !important; }
+    .modal { background-color: var(--card-bg); border: 1px solid var(--card-border); max-width: 28rem; width: 100%; border-radius: 1rem; padding: 1.5rem; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); position: relative; }
+    .modal-title { font-size: 1.25rem; font-weight: 800; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem; }
+    .modal-desc { font-size: 0.875rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 1rem; }
+    .tips-box { background-color: var(--stats-bg); border-radius: 0.75rem; padding: 1rem; margin-bottom: 1.25rem; font-size: 0.75rem; color: var(--text-muted); line-height: 1.6; }
+    .tips-box p { margin-bottom: 0.5rem; }
+    .tips-box p:last-child { margin-bottom: 0; }
+    .tips-title { font-weight: 700; color: var(--text-main); margin-bottom: 0.25rem !important; }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--input-border); border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--toefl-purple); }
+
+    /* ==========================================================================
+       Print Booklet Optimization Stylesheet 
+       ========================================================================== */
+    @media print {
+      body {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        height: auto !important;
+        overflow: visible !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      /* 隐藏不必要的非纸质考试交互控件（Header、Sidebar、Controls、Buttons、Toast、Dialogs） */
+      header, 
+      aside, 
+      .controls, 
+      .edge-toggle-btn, 
+      .mode-toggler, 
+      .card-footer, 
+      .toast, 
+      .modal-overlay,
+      #toggleSidebar {
+        display: none !important;
+      }
+
+      /* 平铺整体内容窗口 */
+      .app-container {
+        display: block !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        height: auto !important;
+        overflow: visible !important;
+      }
+
+      main {
+        display: block !important;
+        height: auto !important;
+        overflow: visible !important;
+      }
+
+      /* 彻底平铺并移除边框阴影 */
+      .paper-card {
+        border: none !important;
+        box-shadow: none !important;
+        padding: 1cm !important;
+        height: auto !important;
+        overflow: visible !important;
+        background-color: #ffffff !important;
+      }
+
+      /* 篇章文本段落平铺与打印优化 */
+      .passage-body {
+        overflow: visible !important;
+        height: auto !important;
+        padding-right: 0 !important;
+        font-size: 13pt !important;
+        line-height: 2 !important;
+        color: #000000 !important;
+      }
+
+      /* 单词单格物理空槽转为纸面打印底线 */
+      .blank-input {
+        background-color: transparent !important;
+        background: transparent !important;
+        border-bottom: 1.5px solid #000000 !important;
+        color: #000000 !important;
+        height: 1.5rem !important;
+        width: 1.25rem !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      /* 即使已提交，打印时也隐藏绿色正确/红色错误背景，全部转换为清晰底线，确保纸面干净 */
+      .blank-input.is-correct, 
+      .blank-input.is-incorrect {
+        background-color: transparent !important;
+        background: transparent !important;
+        border-bottom: 1.5px solid #000000 !important;
+        color: #000000 !important;
+      }
+
+      /* 警告指引条加粗黑色打印 */
+      .warning-stripe {
+        border-left: 4px solid #000000 !important;
+        margin-bottom: 1.5cm !important;
+      }
+
+      .warning-title {
+        color: #000000 !important;
+        font-size: 14pt !important;
+      }
+
+      .warning-subtitle {
+        color: #333333 !important;
+        font-size: 11pt !important;
+      }
+
+      /* 确保前缀加粗易读 */
+      .prefix-span {
+        color: #000000 !important;
+        font-size: 13pt !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="header-logo">
+      <span class="logo-badge">TOEFL PRACTICE</span>
+      <h1 class="logo-title">Complete the Words</h1>
+    </div>
+
+    <div class="controls">
+      <div class="timer-widget">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <span id="timerDisplay" class="font-mono">00:00</span>
+        <button id="toggleTimer" class="icon-btn" style="padding:0.15rem; border-radius:50%">
+          <svg id="timerIcon" width="14" height="14" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
+        </button>
+      </div>
+
+      <!-- 新增：一键打印小册子按钮，紧跟在计时挂件右侧 -->
+      <button id="printBooklet" class="icon-btn" title="打印当前文章小册子">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+        </svg>
+      </button>
+
+      <div class="font-controls">
+        <button id="fontDec" class="font-ctrl-btn" title="减小字号">A-</button>
+        <button id="fontInc" class="font-ctrl-btn" title="增大字号">A+</button>
+      </div>
+
+      <button id="muteToggle" class="icon-btn" title="切换音效">
+        <svg id="volumeIcon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path></svg>
+      </button>
+
+      <button id="themeToggle" class="icon-btn" title="切换深色模式">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="app-container">
+    <aside id="sidebar">
+      <div class="stats-header">
+        <span class="stats-label">我的学习看板</span>
+        <div class="stats-grid">
+          <div class="stats-card">
+            <span class="stats-card-label">已完成文章</span>
+            <span id="statsCompleted" class="stats-card-val">- / -</span>
+          </div>
+          <div class="stats-card">
+            <span class="stats-card-label">平均正确率</span>
+            <span id="statsAccuracy" class="stats-card-val">-</span>
+          </div>
+        </div>
+        <div class="progress-wrapper">
+          <div class="progress-meta">
+            <span>总学习进度</span>
+            <span id="statsProgressPct">0%</span>
+          </div>
+          <div class="progress-bg"><div id="statsProgressBar" class="progress-bar"></div></div>
+        </div>
+        <div class="filter-row">
+          <span style="font-size: 0.75rem; color: var(--text-muted);">仅看错题集</span>
+          <button id="filterMistakes" class="switch-btn" role="switch" aria-checked="false"><span id="filterMistakesButton" class="switch-knob"></span></button>
+        </div>
+      </div>
+
+      <div class="nav-section no-scrollbar">
+        <h3 style="font-size: 0.7rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; padding: 0 0.5rem 0.25rem 0.5rem; letter-spacing: 0.05em;">文章大纲导航</h3>
+        <nav id="moduleList" style="display:flex; flex-direction:column; gap:0.5rem"></nav>
+      </div>
+
+      <div class="sidebar-footer">
+        <button id="resetAllData" class="reset-btn">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+          重置所有学习记录
+        </button>
+      </div>
+    </aside>
+
+    <main>
+      <section class="paper-card">
+        <div class="card-header">
+          <div style="display: flex; flex-direction: column; gap: 0.35rem;">
+            <div class="source-row">
+              <button id="toggleSidebar" class="edge-toggle-btn" title="收起/展开左侧面板">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"></path></svg>
+              </button>
+              <span id="activeSource" class="source-badge">---</span>
+            </div>
+            <h2 id="activeTitle" class="card-title">---</h2>
+          </div>
+          <div class="mode-toggler">
+            <button id="modeExam" class="mode-btn active">Exam (提交)</button>
+            <button id="modePractice" class="mode-btn">Practice (即时)</button>
+          </div>
+        </div>
+
+        <div class="warning-stripe">
+          <span class="warning-title">Section 1: Reading</span>
+          <p id="questionInstructions" class="warning-subtitle">---</p>
+        </div>
+
+        <div id="passageContainer" class="passage-body no-scrollbar"></div>
+
+        <div class="card-footer">
+          <div class="action-group">
+            <button id="submitExam" class="btn btn-primary">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              <span>提交答案并评分</span>
+            </button>
+            <button id="resetPassage" class="icon-btn" style="padding: 0.65rem; border-radius: 0.75rem" title="清空重来">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H17.5"></path></svg>
+            </button>
+            <button id="nextPassage" class="btn btn-dark" title="跳到下一篇真题">
+              <span>下一篇</span>
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"></path></svg>
+            </button>
+          </div>
+          <div id="passageScoreBoard" class="scoreboard">
+            <span class="score-label">本篇得分:</span>
+            <span id="passageScoreText" class="score-val">0 / 10</span>
+            <span id="passageScoreAccuracy" class="score-pct">0%</span>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="helpModal" class="modal-overlay hidden">
+    <div class="modal">
+      <h3 class="modal-title"><span>🎉</span> 欢迎来到 TOEFL Test</h3>
+      <p class="modal-desc">本站支持<b>独立外包式离线真题数据库加载</b>。</p>
+      <div class="tips-box">
+        <p class="tips-title">💡 备考高效思维链路：</p>
+        <p>1. <b>默认 Exam 模式</b>：答完提交后只反馈红绿颜色，<b>不显示正确答案</b>。</p>
+        <p>2. <b>切换 Practice 模式</b>：错题**自动解锁**允许修改。支持在此模式下重新思考并反复作答！</p>
+        <p>3. <b>揭晓标准答案</b>：在 Practice 模式下二次提交，系统才会正式在错题旁批注出绿色 `(正确答案)`。</p>
+      </div>
+      <button id="closeHelpModal" class="btn btn-primary" style="width: 100%; justify-content: center;">开始提分演练</button>
+    </div>
+  </div>
+
+  <div id="customToast" class="toast"><span id="toastIcon">✔️</span><span id="toastMessage">保存成功！</span></div>
+
+  <script>
+    // 核心重构数据路由：映射自外部 Data/Z001-030-database.js 注入到全局 window 属性中的统一数据集
+    const MODULES_DB = window.TOEFL_QUIZ_DATA || [];
+
+    let activePassageId = MODULES_DB.length > 0 ? MODULES_DB[0].id : "";
+    let mode = 'exam'; let isMuted = false; let timerInterval = null; let timerSeconds = 0;
+    let userAnswersStore = {}; let fontSizeLevel = 18; let filterMistakesMode = false;
+
+    function playTone(type) {
+      if (isMuted) return;
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (type === 'correct') {
+          const osc = audioCtx.createOscillator(); const gainNode = audioCtx.createGain();
+          osc.connect(gainNode); gainNode.connect(audioCtx.destination);
+          osc.type = 'sine'; osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.12);
+          gainNode.gain.setValueAtTime(0.04, audioCtx.currentTime); gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+          osc.start(); osc.stop(audioCtx.currentTime + 0.15);
+        } else if (type === 'submit_success') {
+          const chord = [523.25, 659.25, 783.99, 1046.50];
+          chord.forEach((freq, index) => {
+            const osc = audioCtx.createOscillator(); const gainNode = audioCtx.createGain();
+            osc.connect(gainNode); gainNode.connect(audioCtx.destination);
+            osc.type = 'triangle'; osc.frequency.setValueAtTime(freq, audioCtx.currentTime + index * 0.08);
+            gainNode.gain.setValueAtTime(0.03, audioCtx.currentTime + index * 0.08); gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + index * 0.08 + 0.4);
+            osc.start(audioCtx.currentTime + index * 0.08); osc.stop(audioCtx.currentTime + index * 0.08 + 0.4);
+          });
+        }
+      } catch (e) {}
+    }
+
+    function triggerToast(msg, isSuccess = true) {
+      const toast = document.getElementById('customToast');
+      document.getElementById('toastIcon').innerText = isSuccess ? '✔️' : '💡';
+      document.getElementById('toastMessage').innerText = msg;
+      toast.classList.add('show');
+      setTimeout(() => { toast.classList.remove('show'); }, 2500);
+    }
+
+    // 绑定打印小册子按钮点击事件
+    document.getElementById('printBooklet').addEventListener('click', () => {
+      window.print();
+    });
+
+    function formatTime(sec) { return String(Math.floor(sec / 60)).padStart(2, '0') + ":" + String(sec % 60).padStart(2, '0'); }
+
+    function initTimer() {
+      if (timerInterval) clearInterval(timerInterval); timerSeconds = 0;
+      document.getElementById('timerDisplay').innerText = formatTime(timerSeconds);
+      timerInterval = setInterval(() => { timerSeconds++; document.getElementById('timerDisplay').innerText = formatTime(timerSeconds); }, 1000);
+      document.getElementById('timerIcon').innerHTML = `<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path>`;
+    }
+
+    function loadUserData() {
+      const stored = localStorage.getItem('toefl_z12_progress_offline_v10');
+      userAnswersStore = stored ? JSON.parse(stored) : {};
+    }
+
+    // --- STREAMING_CHUNK:Calculating overall statistics... ---
+    function saveUserData() {
+      localStorage.setItem('toefl_z12_progress_offline_v10', JSON.stringify(userAnswersStore));
+      calculateOverallStats();
+    }
+
+    function calculateOverallStats() {
+      if (MODULES_DB.length === 0) return;
+      let completedCount = 0; let totalScore = 0; let totalPossibleAnswers = 0;
+      MODULES_DB.forEach(p => {
+        const pAnswers = userAnswersStore[p.id];
+        if (pAnswers && (pAnswers.examSubmitted || pAnswers.practiceSubmitted)) {
+          completedCount++; let correctInPassage = 0;
+          const targetPool = pAnswers.examSubmitted ? pAnswers.exam : pAnswers.practice;
+          p.answers.forEach((ans, index) => {
+            if (targetPool && (targetPool[index] || '').trim().toLowerCase() === ans.toLowerCase()) correctInPassage++;
+          });
+          totalScore += correctInPassage; totalPossibleAnswers += p.answers.length;
+        }
+      });
+      document.getElementById('statsCompleted').innerText = `${completedCount} / ${MODULES_DB.length}`;
+      const progressPct = Math.round((completedCount / MODULES_DB.length) * 100);
+      document.getElementById('statsProgressPct').innerText = `${progressPct}%`;
+      document.getElementById('statsProgressBar').style.width = `${progressPct}%`;
+      const accuracyEl = document.getElementById('statsAccuracy');
+      if (totalPossibleAnswers > 0) {
+        const accuracy = Math.round((totalScore / totalPossibleAnswers) * 100);
+        accuracyEl.innerText = `${accuracy}%`;
+        accuracyEl.style.color = accuracy >= 80 ? 'var(--correct-border)' : (accuracy >= 60 ? '#f59e0b' : 'var(--incorrect-border)');
+      } else { accuracyEl.innerText = "-"; accuracyEl.style.color = 'var(--text-muted)'; }
+      renderNavTree();
+    }
+
+    function renderNavTree() {
+      const container = document.getElementById('moduleList'); container.innerHTML = "";
+      const displayedPassages = MODULES_DB.filter(p => {
+        if (!filterMistakesMode) return true;
+        const store = userAnswersStore[p.id];
+        if (!store || !(store.examSubmitted || store.practiceSubmitted)) return false;
+        let hasError = false; const targetPool = store.examSubmitted ? store.exam : store.practice;
+        p.answers.forEach((ans, idx) => { if (targetPool && (targetPool[idx] || '').trim().toLowerCase() !== ans.toLowerCase()) hasError = true; });
+        return hasError;
+      });
+      displayedPassages.forEach(p => {
+        const btn = document.createElement('button'); btn.className = "nav-item";
+        if (p.id === activePassageId) btn.classList.add('active');
+        btn.onclick = () => { activePassageId = p.id; if (window.innerWidth < 1024) document.getElementById('sidebar').classList.add('hidden'); loadActivePassage(); };
+        let statusBadge = `<span class="nav-dot-none"></span>`; const store = userAnswersStore[p.id];
+        if (store) {
+          if (store.examSubmitted || store.practiceSubmitted) {
+            let correct = 0; const targetPool = store.examSubmitted ? store.exam : store.practice;
+            p.answers.forEach((ans, idx) => { if (targetPool && (targetPool[idx] || '').trim().toLowerCase() === ans.toLowerCase()) correct++; });
+            const pct = Math.round((correct / p.answers.length) * 100);
+            statusBadge = `<span class="${pct === 100 ? 'nav-badge-correct' : 'nav-badge-mistake'}">${correct}/${p.answers.length}</span>`;
+          } else { statusBadge = `<span class="nav-dot-pending"></span>`; }
+        }
+        btn.innerHTML = `<div style="display:flex; flex-direction:column; overflow:hidden; text-align:left; padding-right:0.5rem"><span class="nav-item-id">${p.id}</span><span class="nav-item-title">${p.title}</span></div>${statusBadge}`;
+        container.appendChild(btn);
+      });
+      if (container.children.length === 0) container.innerHTML = `<div style="text-align:center; padding: 1.5rem 0; color: var(--text-muted); font-size: 0.75rem">📭 暂无对应的文章数据</div>`;
+    }
+
+    function renderParagraph(passageObj) {
+      const container = document.getElementById('passageContainer'); container.innerHTML = "";
+      const text = passageObj.paragraph; const regex = /([a-zA-Z]+)(#+)/g;
+      let match; let lastIndex = 0; let answerIndex = 0;
+      const store = userAnswersStore[passageObj.id] || {};
+      const isExamSubmitted = store.examSubmitted || false; const isPracticeSubmitted = store.practiceSubmitted || false;
+      const examAnswers = store.exam || {}; const practiceAnswers = store.practice || {};
+      const currentModeAnswers = (mode === 'exam') ? examAnswers : practiceAnswers;
+      const wrapperParagraph = document.createElement('p'); wrapperParagraph.className = "text-justify"; wrapperParagraph.style.paddingBottom = "2.5rem";
+      
+      while ((match = regex.exec(text)) !== null) {
+        if (match.index > lastIndex) wrapperParagraph.appendChild(document.createTextNode(text.substring(lastIndex, match.index)));
+        const prefix = match[1]; const hashes = match[2]; const hashLen = hashes.length;
+        const currentAns = currentModeAnswers[answerIndex] || ""; const correctVal = passageObj.answers[answerIndex];
+        const spanWrap = document.createElement('span'); spanWrap.className = "inline-wrapper";
+        const prefixSpan = document.createElement('span'); prefixSpan.className = "prefix-span text-slate-900 dark:text-white"; prefixSpan.innerText = prefix;
+        spanWrap.appendChild(prefixSpan);
+        
+        for (let subIdx = 0; subIdx < hashLen; subIdx++) {
+          const input = document.createElement('input'); input.type = "text"; input.maxLength = 1;
+          const charVal = currentAns[subIdx] || ""; input.value = charVal; input.className = "blank-input";
+          input.dataset.wordIndex = answerIndex; input.dataset.charIndex = subIdx; input.dataset.correctChar = correctVal[subIdx] || "";
+          input.disabled = (mode === 'exam' && isExamSubmitted) || (mode === 'practice' && isPracticeSubmitted);
+          
+          const isCharCorrect = charVal.toLowerCase() === (correctVal[subIdx] || "").toLowerCase();
+          if ((mode === 'exam' && isExamSubmitted) || (mode === 'practice' && isPracticeSubmitted) || (mode === 'practice' && isExamSubmitted && charVal !== "")) {
+            input.classList.add(isCharCorrect ? 'is-correct' : 'is-incorrect');
+          } else if (mode === 'practice' && isCharCorrect && charVal !== "") {
+            input.classList.add('is-correct');
+          }
+          
+          input.addEventListener('input', (e) => {
+            let val = e.target.value.toLowerCase().replace(/[^a-z]/g, ''); e.target.value = val;
+            const wIdx = parseInt(e.target.dataset.wordIndex);
+            const siblingInputs = Array.from(document.querySelectorAll(`input[data-word-index="${wIdx}"]`));
+            const fullWordString = siblingInputs.map(inp => inp.value).join('');
+            if (!userAnswersStore[passageObj.id]) userAnswersStore[passageObj.id] = { exam: {}, practice: {}, examSubmitted: false, practiceSubmitted: false };
+            if (!userAnswersStore[passageObj.id].exam) userAnswersStore[passageObj.id].exam = {};
+            if (!userAnswersStore[passageObj.id].practice) userAnswersStore[passageObj.id].practice = {};
+            userAnswersStore[passageObj.id][mode][wIdx] = fullWordString; saveUserData();
+            
+            if (mode === 'practice') {
+              if (val === e.target.dataset.correctChar.toLowerCase()) { e.target.classList.remove('is-incorrect'); e.target.classList.add('is-correct'); playTone('correct'); }
+              else { e.target.classList.remove('is-correct'); if (isExamSubmitted && val !== "") e.target.classList.add('is-incorrect'); }
+            }
+            if (val.length === 1) {
+              const allInputs = Array.from(document.querySelectorAll('.blank-input'));
+              const nextInput = allInputs[allInputs.indexOf(e.target) + 1];
+              if (nextInput) { nextInput.focus(); nextInput.select(); }
+            }
+          });
+
+          input.addEventListener('keydown', (e) => {
+            if (e.key === 'Backspace' && e.target.value.length === 0) {
+              const allInputs = Array.from(document.querySelectorAll('.blank-input'));
+              const prevInput = allInputs[allInputs.indexOf(e.target) - 1];
+              if (prevInput) { prevInput.focus(); setTimeout(() => { prevInput.selectionStart = prevInput.selectionEnd = prevInput.value.length; }, 1); }
+            }
+          });
+          spanWrap.appendChild(input);
+        }
+        if (isPracticeSubmitted && mode === 'practice' && currentAns.trim().toLowerCase() !== correctVal.toLowerCase()) {
+          const helper = document.createElement('span'); helper.className = "correction-hint"; helper.innerText = `(${correctVal})`; helper.title = `正确答案是: ${correctVal}`; spanWrap.appendChild(helper);
+        }
+        wrapperParagraph.appendChild(spanWrap); lastIndex = regex.lastIndex; answerIndex++;
+      }
+      if (lastIndex < text.length) wrapperParagraph.appendChild(document.createTextNode(text.substring(lastIndex)));
+      container.appendChild(wrapperParagraph); container.style.fontSize = `${fontSizeLevel}px`;
+    }
+
+    function loadActivePassage() {
+      if (MODULES_DB.length === 0) return;
+      const passageObj = MODULES_DB.find(p => p.id === activePassageId); if (!passageObj) return;
+      document.getElementById('activeTitle').innerText = `${passageObj.id} ${passageObj.title}`;
+      document.getElementById('activeSource').innerText = passageObj.source;
+      document.getElementById('questionInstructions').innerText = `Questions ${passageObj.range}: Fill in the missing letters in the paragraph.`;
+      renderParagraph(passageObj); initTimer();
+      const store = userAnswersStore[passageObj.id] || {};
+      const isExamSubmitted = store.examSubmitted || false; const isPracticeSubmitted = store.practiceSubmitted || false;
+      const scoreBoard = document.getElementById('passageScoreBoard'); const submitBtn = document.getElementById('submitExam');
+      
+      if (mode === 'exam') {
+        submitBtn.innerHTML = `<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><span>提交答案并评分 (Exam)</span>`;
+        submitBtn.disabled = isExamSubmitted; submitBtn.style.opacity = isExamSubmitted ? "0.5" : "1"; submitBtn.style.cursor = isExamSubmitted ? "not-allowed" : "pointer";
+      } else {
+        submitBtn.innerHTML = `<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg><span>提交并公布正确答案</span>`;
+        submitBtn.disabled = isPracticeSubmitted; submitBtn.style.opacity = isPracticeSubmitted ? "0.5" : "1"; submitBtn.style.cursor = isPracticeSubmitted ? "not-allowed" : "pointer";
+      }
+      if ((mode === 'exam' && isExamSubmitted) || (mode === 'practice' && isPracticeSubmitted)) {
+        let correct = 0; const targetAnswers = store[mode] || {};
+        passageObj.answers.forEach((ans, idx) => { if ((targetAnswers[idx] || '').trim().toLowerCase() === ans.toLowerCase()) correct++; });
+        scoreBoard.style.display = 'flex'; document.getElementById('passageScoreText').innerText = `${correct} / ${passageObj.answers.length}`;
+        document.getElementById('passageScoreAccuracy').innerText = `${Math.round((correct / passageObj.answers.length) * 100)}%`;
+      } else { scoreBoard.style.display = 'none'; }
+      calculateOverallStats();
+    }
+
+    function loadNextPassage() {
+      const currentIndex = MODULES_DB.findIndex(p => p.id === activePassageId);
+      if (currentIndex !== -1) { activePassageId = MODULES_DB[(currentIndex + 1) % MODULES_DB.length].id; loadActivePassage(); triggerToast(`已切换至下一篇: ${activePassageId}`); }
+    }
+
+    function setMode(newMode) {
+      mode = newMode;
+      document.getElementById('modePractice').classList.toggle('active', mode === 'practice');
+      document.getElementById('modeExam').classList.toggle('active', mode === 'exam');
+      const store = userAnswersStore[activePassageId];
+      if (mode === 'practice' && store && store.examSubmitted && (!store.practice || Object.keys(store.practice).length === 0)) {
+        store.practice = JSON.parse(JSON.stringify(store.exam || {})); saveUserData();
+      }
+      loadActivePassage();
+    }
+
+    function submitActiveSection() {
+      if (!userAnswersStore[activePassageId]) userAnswersStore[activePassageId] = { exam: {}, practice: {}, examSubmitted: false, practiceSubmitted: false };
+      if (mode === 'exam') { userAnswersStore[activePassageId].examSubmitted = true; triggerToast("考场交卷成功！请切换至 Practice 模式对错题进行订正。"); } 
+      else { userAnswersStore[activePassageId].practiceSubmitted = true; triggerToast("练习模式交卷成功！答案已公布。"); }
+      saveUserData(); playTone('submit_success'); loadActivePassage();
+    }
+
+    function resetActiveSection() { if (userAnswersStore[activePassageId]) { delete userAnswersStore[activePassageId]; saveUserData(); } loadActivePassage(); triggerToast("本篇数据及记录已重置"); }
+
+    window.onload = function() {
+      loadUserData(); calculateOverallStats(); if (MODULES_DB.length > 0) { activePassageId = MODULES_DB[0].id; loadActivePassage(); }
+      if (!localStorage.getItem('toefl_welcome_passed_v8_offline')) document.getElementById('helpModal').classList.remove('hidden');
+    }
+
+    document.getElementById('modePractice').addEventListener('click', () => setMode('practice'));
+    document.getElementById('modeExam').addEventListener('click', () => setMode('exam'));
+    document.getElementById('submitExam').addEventListener('click', submitActiveSection);
+    document.getElementById('resetPassage').addEventListener('click', resetActiveSection);
+    document.getElementById('nextPassage').addEventListener('click', loadNextPassage);
+    document.getElementById('closeHelpModal').addEventListener('click', () => { document.getElementById('helpModal').classList.add('hidden'); localStorage.setItem('toefl_welcome_passed_v8_offline', 'true'); });
+    document.getElementById('fontInc').addEventListener('click', () => { if (fontSizeLevel < 24) { fontSizeLevel += 2; document.getElementById('passageContainer').style.fontSize = `${fontSizeLevel}px`; } });
+    document.getElementById('fontDec').addEventListener('click', () => { if (fontSizeLevel > 14) { fontSizeLevel -= 2; document.getElementById('passageContainer').style.fontSize = `${fontSizeLevel}px`; } });
+    
+    document.getElementById('muteToggle').addEventListener('click', () => {
+      isMuted = !isMuted;
+      document.getElementById('volumeIcon').innerHTML = isMuted ? `<path d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /><path d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />` : `<path d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />;`;
+      triggerToast(isMuted ? "音效已静音" : "音效已启用");
+    });
+
+    document.documentElement.classList.toggle('dark', false); // Ensure we can control theme toggle properly
+
+    document.getElementById('themeToggle').addEventListener('click', () => { document.documentElement.classList.toggle('dark'); triggerToast("视觉模式已切换"); });
+    
+    document.getElementById('toggleTimer').addEventListener('click', () => {
+      if (timerInterval) { clearInterval(timerInterval); timerInterval = null; document.getElementById('timerIcon').innerHTML = `<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path>`; triggerToast("计时器已暂停"); } 
+      else { timerInterval = setInterval(() => { timerSeconds++; document.getElementById('timerDisplay').innerText = formatTime(timerSeconds); }, 1000); document.getElementById('timerIcon').innerHTML = `<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path>`; triggerToast("计时器恢复"); }
+    });
+
+    const filterBtn = document.getElementById('filterMistakes');
+    filterBtn.addEventListener('click', () => {
+      filterMistakesMode = !filterMistakesMode; filterBtn.classList.toggle('active', filterMistakesMode);
+      triggerToast(filterMistakesMode ? "仅显示含有错题的文章" : "显示全部文章"); renderNavTree();
+    });
+
+    document.getElementById('resetAllData').addEventListener('click', () => {
+      const confirmReset = document.createElement('div'); confirmReset.className = "modal-overlay";
+      confirmReset.innerHTML = `<div class="modal" style="text-align: center; max-width: 20rem"><h4 style="font-size: 1.1rem; font-weight: 800; margin-bottom: 0.5rem">⚠️ 确认清除全部进度吗？</h4><p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 1.25rem">此操作将清空您在所有 Module 的所有作答与得分，且不可恢复。</p><div style="display: flex; gap: 0.75rem; justify-content: center"><button id="cancelReset" class="btn btn-secondary" style="font-size: 0.75rem; padding: 0.5rem 1rem">取消</button><button id="confirmReset" class="btn" style="font-size: 0.75rem; padding: 0.5rem 1rem; background-color: #ef4444; color: #ffffff">确认清除</button></div></div>`;
+      document.body.appendChild(confirmReset);
+      document.getElementById('cancelReset').onclick = () => confirmReset.remove();
+      document.getElementById('confirmReset').onclick = () => { localStorage.removeItem('toefl_z12_progress_offline_v10'); userAnswersStore = {}; confirmReset.remove(); calculateOverallStats(); loadActivePassage(); triggerToast("进度已完全重置", false); };
+    });
+
+    document.getElementById('toggleSidebar').addEventListener('click', () => { document.getElementById('sidebar').classList.toggle('hidden'); });
+  </script>
+</body>
+</html>
